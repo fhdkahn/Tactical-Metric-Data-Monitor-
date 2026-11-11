@@ -450,6 +450,32 @@
 .copy-codes{min-height:44px}
 @media(max-width:760px){.result .copy-codes{width:100%}}
 </style>
+<style>
+.pocket-preview,.mip-pages{display:none}
+@media(max-width:760px){
+  .pocket-preview{display:flex;position:sticky;top:calc(54px + env(safe-area-inset-top));z-index:8;align-items:center;gap:12px;padding:5px 10px;margin:0 0 16px;border:1px solid #41505a;border-radius:8px;background:#0b1218;color:#e5f1f2;box-shadow:0 3px 9px #0002}
+  .pocket-face{flex:none;width:76px;height:76px}
+  .pocket-face .face{width:100%;height:100%;padding:0;container-type:inline-size;border:1px solid #41505a}
+  .pocket-detail{flex:1;min-width:0}
+  #pocketLabel{font-size:12px;color:#c4d3d7}
+  .face.pocket-sample{display:grid;align-items:center;height:43px;width:100%;border:0;border-radius:0;padding:0;background:none}
+  .pocket-sample:before{display:none}
+  .face.pocket-sample>*{position:relative;top:auto;left:auto;transform:none;margin:0;width:min(100%,var(--sample-width))}
+  .mip-dialog{width:min(262px,calc(100vw - 20px));padding:8px;border-radius:9px}
+  .mip-dialog-head{margin:0 0 4px}
+  .mip-close{width:32px;height:32px}
+  .mip-palette{gap:3px}
+  .mip-swatch{height:25px;aspect-ratio:auto;border-radius:3px}
+  .mip-swatch[hidden]{display:none}
+  .mip-swatch.selected{outline-width:2px;outline-offset:0}
+  .mip-detail{align-items:center;margin-top:5px;padding-top:4px}
+  .mip-detail .palette-count{display:none}
+  .mip-pages{display:flex;gap:4px}
+  .mip-pages button{min-height:28px;padding:2px 8px;background:white;color:#20303a;border:1px solid #b6c3ca;border-radius:4px}
+  .mip-pages button[aria-pressed="true"]{background:#23373a;color:white}
+  .studio-controls :is(button,input){scroll-margin-top:95px}
+}
+</style>
 </head>
 <body>
   <header class="top"><div class="wrap topin"><a class="brand" href="#page-title"><span class="mark">TM</span><span>TACTICAL METRIC STUDIO</span></a><nav class="nav"><a href="#designer">Designer</a><a href="#accurate-guide">Guide</a><a href="#settings">Settings</a><button class="theme-toggle" id="pageThemeToggle" type="button" aria-label="Switch to day mode"><span id="pageThemeIcon" aria-hidden="true">☀</span><span id="pageThemeLabel">Day mode</span></button></nav></div></header>
@@ -468,6 +494,12 @@
       <a class="studio-edit" href="#designer">Customize colors <span aria-hidden="true">↓</span></a>
     </div>
     <div class="studio-controls" id="designer">
+      <div class="pocket-preview" aria-label="Live watch preview">
+        <div class="pocket-face" aria-hidden="true"></div>
+        <div class="pocket-detail"><span id="pocketLabel">Time text</span>
+          <div class="face pocket-sample" aria-hidden="true"></div>
+        </div>
+      </div>
       <h2>Color designer</h2>
       <p class="hint">In Garmin Connect IQ, open your watch face settings and paste each color line into its matching field.</p>
       <div class="settings"><div class="group"><h3>Six colors · time and metric fields</h3><p class="hint">Controls the digits and background patterns for the time and metrics.</p><div class="colorgrid" id="mainControls"></div><div class="result"><span class="label">Six colors setting</span><code id="mainOutput"></code><div class="actions copy-actions"><button type="button" class="button primary copy-codes" data-copy="mainOutput">Copy 6 color codes</button><button class="button" data-reset="main">Reset default</button><label class="button mode-switch mip-toggle" title="Use the 64-color MIP palette for all color pickers"><input id="mipMode" type="checkbox" checked><span>MIP palette</span></label></div></div></div>
@@ -603,7 +635,7 @@
   </main>
   <footer class="footer"><div class="wrap"><strong>Tactical Metric Studio</strong> · An independent visual settings guide for Tactical Metric / Data Monitor. Preview data is illustrative.</div></footer>
 <nav class="mobile-dock" aria-label="Page sections"><a href="#page-title"><span aria-hidden="true">◉</span>Preview</a><a href="#designer"><span aria-hidden="true">◧</span>Designer</a><a href="#accurate-guide"><span aria-hidden="true">▤</span>Guide</a><a href="#settings"><span aria-hidden="true">⚙</span>Settings</a></nav>
-  <div class="mip-overlay" id="mipOverlay" aria-hidden="true"><div class="mip-dialog" role="dialog" aria-label="MIP color palette"><div class="mip-dialog-head"><span id="mipTitle">MIP COLORS</span><button class="mip-close" id="mipClose" type="button" aria-label="Close color palette">×</button></div><div class="mip-palette" id="mipPalette"></div><div class="mip-detail"><span>64 MIP colors</span><code id="mipHex"></code></div></div></div>
+  <div class="mip-overlay" id="mipOverlay" aria-hidden="true"><div class="mip-dialog" role="dialog" aria-label="MIP color palette"><div class="mip-dialog-head"><span id="mipTitle">MIP COLORS</span><button class="mip-close" id="mipClose" type="button" aria-label="Close color palette">×</button></div><div class="mip-palette" id="mipPalette"></div><div class="mip-detail"><span class="palette-count">64 MIP colors</span><div class="mip-pages" aria-label="Palette pages"><button type="button" data-page="0">1–32</button><button type="button" data-page="1">33–64</button></div><code id="mipHex"></code></div></div></div>
   <div class="toast" id="toast" role="status" aria-live="polite">Copied</div>
   <script>
     const groups = {
@@ -629,6 +661,45 @@
     ];
     let activeColorControl=null;
     function syncSwatch(group,index,color){const trigger=document.querySelector(`[data-trigger="${group}"][data-index="${index}"]`);if(trigger)trigger.querySelector('span').style.background=color}
+    const phonePicker = window.matchMedia('(max-width:760px)');
+    const previewStrip = document.querySelector('.pocket-preview');
+    const watchFace = document.querySelector('#watch .face');
+    const sampleBox = previewStrip.querySelector('.pocket-sample');
+    const samples = {
+      main: ['clockrow','clockrow','bottommetrics','bottommetrics','tops','tops'],
+      week: ['week','week','week','date']
+    };
+    const sampleWidths = {clockrow:146, bottommetrics:164, tops:239, week:179, date:109};
+    function showFieldSample(group,index) {
+      const name = samples[group][index];
+      sampleBox.replaceChildren(watchFace.querySelector('.'+name).cloneNode(true));
+      sampleBox.style.setProperty('--sample-width',sampleWidths[name]+'px');
+      document.getElementById('pocketLabel').textContent = groups[group][index][0];
+    }
+    previewStrip.querySelector('.pocket-face').append(watchFace.cloneNode(true));
+    showFieldSample('main',0);
+    function followField(event) {
+      const row = event.target.closest('.colorcontrol');
+      if (!row || !phonePicker.matches) return;
+      const field = row.querySelector('[data-trigger]').dataset;
+      showFieldSample(field.trigger,field.index);
+    }
+    document.addEventListener('focusin',followField);
+    document.addEventListener('pointerdown',followField);
+    function showPalettePage(page) {
+      const swatches = document.getElementById('mipPalette').children;
+      Array.from(swatches).forEach((swatch,index) => {
+        swatch.hidden = phonePicker.matches && Math.floor(index/32)!==page;
+      });
+      document.querySelectorAll('.mip-pages button').forEach(button=>{
+        button.setAttribute('aria-pressed',String(Number(button.dataset.page)===page));
+      });
+    }
+    document.querySelector('.mip-pages').addEventListener('click',event=>{
+      const button=event.target.closest('[data-page]');
+      if(button) showPalettePage(Number(button.dataset.page));
+    });
+    phonePicker.addEventListener('change',()=>{if(activeColorControl)closeMipPalette();});
     function positionMipPalette(){
       if(!activeColorControl)return;
       const {group,index}=activeColorControl;
@@ -641,7 +712,10 @@
         else {left=rect.left;top=rect.bottom+gap;if(top+h>innerHeight-pad)top=rect.top-gap-h;}
       }
       dialog.style.left=Math.max(pad,Math.min(left,innerWidth-w-pad))+'px';
-      dialog.style.top=Math.max(pad,Math.min(top,innerHeight-h-pad))+'px';
+      const stripBottom = previewStrip.getBoundingClientRect().bottom;
+      const minTop = phonePicker.matches ? Math.max(pad,stripBottom+4) : pad;
+      const bottom = phonePicker.matches ? document.querySelector('.mobile-dock').getBoundingClientRect().top : innerHeight;
+      dialog.style.top=Math.max(pad,Math.min(Math.max(minTop,top),bottom-h-pad))+'px';
     }
     function openMipPalette(group,index){
       if(activeColorControl?.group===group&&activeColorControl?.index===index){closeMipPalette();return;}
@@ -665,7 +739,7 @@
           let target;
           if(e.key in moves)target=(i+moves[e.key]+64)%64;
           else if(e.key==='Home')target=0;else if(e.key==='End')target=63;
-          if(target!==undefined){e.preventDefault();palette.children[target].focus();}
+          if(target!==undefined){e.preventDefault();showPalettePage(Math.floor(target/32));palette.children[target].focus();}
         });
         b.addEventListener('click',()=>{
           document.querySelector(`[data-group="${group}"][data-index="${index}"]`).value=color;
@@ -674,6 +748,7 @@
         });palette.append(b);
       });
       const overlay=document.getElementById('mipOverlay');overlay.classList.add('open');overlay.setAttribute('aria-hidden','false');
+      showPalettePage(Math.floor(Math.max(0,mipColors.indexOf(current))/32));
       positionMipPalette();
       (palette.querySelector('.selected')||palette.firstElementChild).focus({preventScroll:true});
     }
@@ -688,7 +763,7 @@
     }
     function values(type){return [...document.querySelectorAll(`[data-group="${type}"]`)].map(x=>x.value.toUpperCase())}
     function valid(v){return /^#[0-9A-F]{6}$/.test(v)}
-    function update(){const a=values('main'),b=values('week');document.getElementById('mainOutput').textContent=a.join(' ');document.getElementById('weekOutput').textContent=b.join(' ');const w=document.getElementById('watch');const [time,timebg,metric,metricbg,small,smallbg]=a;const [circlebg,circleink,outline,date]=b;Object.entries({'--time':time,'--timebg':timebg,'--metric':metric,'--metricbg':metricbg,'--small':small,'--smallbg':smallbg,'--circlebg':circlebg,'--circleink':circleink,'--outline':outline,'--date':date}).forEach(([k,v])=>{if(valid(v))w.style.setProperty(k,v)});document.querySelectorAll('.metricmini').forEach(x=>{x.style.color=valid(small)?small:'';x.style.backgroundColor=valid(smallbg)?smallbg:''})}
+    function update(){const a=values('main'),b=values('week');document.getElementById('mainOutput').textContent=a.join(' ');document.getElementById('weekOutput').textContent=b.join(' ');const w=document.getElementById('watch');const [time,timebg,metric,metricbg,small,smallbg]=a;const [circlebg,circleink,outline,date]=b;Object.entries({'--time':time,'--timebg':timebg,'--metric':metric,'--metricbg':metricbg,'--small':small,'--smallbg':smallbg,'--circlebg':circlebg,'--circleink':circleink,'--outline':outline,'--date':date}).forEach(([k,v])=>{if(valid(v)){w.style.setProperty(k,v);previewStrip.style.setProperty(k,v)}});document.querySelectorAll('.metricmini').forEach(x=>{x.style.color=valid(small)?small:'';x.style.backgroundColor=valid(smallbg)?smallbg:''})}
     function setGroup(type,list){list.forEach((color,i)=>{document.querySelector(`[data-group="${type}"][data-index="${i}"]`).value=color;document.querySelector(`[data-hex="${type}"][data-index="${i}"]`).value=color;syncSwatch(type,i,color)});update()}
     let copyNoticeTimer;
     async function copy(id) {
